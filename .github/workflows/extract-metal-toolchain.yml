@@ -7,17 +7,19 @@ jobs:
   extract:
     runs-on: macos-26
     steps:
-      - name: Tar full MobileAsset directory
+      - name: Use ditto to create cpio with xattrs preserved
         run: |
           set -e
-          ls -la /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain/
-          sudo tar -czf $GITHUB_WORKSPACE/metal-toolchain-full.tar.gz -C /System/Library/AssetsV2 com_apple_MobileAsset_MetalToolchain
-          ls -la $GITHUB_WORKSPACE/metal-toolchain-full.tar.gz
-          sudo chown $(whoami) $GITHUB_WORKSPACE/metal-toolchain-full.tar.gz
+          cd /System/Library/AssetsV2
+          sudo ditto --rsrc --extattr -c com_apple_MobileAsset_MetalToolchain $GITHUB_WORKSPACE/metal-toolchain.cpio
+          ls -la $GITHUB_WORKSPACE/metal-toolchain.cpio
+          sudo chown $(whoami) $GITHUB_WORKSPACE/metal-toolchain.cpio
+          gzip $GITHUB_WORKSPACE/metal-toolchain.cpio
+          ls -la $GITHUB_WORKSPACE/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MetalToolchain-full
-          path: metal-toolchain-full.tar.gz
+          name: MetalToolchain-ditto
+          path: metal-toolchain.cpio.gz
           retention-days: 1
