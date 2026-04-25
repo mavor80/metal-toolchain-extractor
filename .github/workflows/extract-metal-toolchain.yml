@@ -1,0 +1,52 @@
+name: Extract Metal Toolchain DMG
+
+on:
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: macos-26
+    steps:
+      - name: Find Metal Toolchain assets
+        run: |
+          set -e
+          echo "=== Listing AssetsV2 for MetalToolchain ==="
+          sudo ls -la /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain/ || echo "directory not found"
+          echo "=== Looking for dmg files ==="
+          sudo find /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain/ -name "*.dmg" || true
+          echo "=== xcodebuild -showComponent ==="
+          xcodebuild -showComponent metalToolchain || true
+          echo "=== Mounted volumes ==="
+          mount | grep -i metal || true
+          ls -la /Volumes/ || true
+
+      - name: Copy dmg to workspace
+        run: |
+          set -e
+          mkdir -p $GITHUB_WORKSPACE/metal-toolchain-dmg
+          DMG_PATH=$(sudo find /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain/ -name "*.dmg" | head -1)
+          if [ -n "$DMG_PATH" ]; then
+            echo "Found dmg at: $DMG_PATH"
+            sudo cp "$DMG_PATH" $GITHUB_WORKSPACE/metal-toolchain-dmg/MetalToolchain.dmg
+            sudo chown $(whoami) $GITHUB_WORKSPACE/metal-toolchain-dmg/MetalToolchain.dmg
+            ls -la $GITHUB_WORKSPACE/metal-toolchain-dmg/
+          else
+            echo "No dmg found"
+            exit 1
+          fi
+
+      - name: Get .asset metadata
+        run: |
+          ASSET_DIR=$(sudo ls -d /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain/*.asset 2>/dev/null | head -1)
+          if [ -n "$ASSET_DIR" ]; then
+            echo "Asset dir: $ASSET_DIR"
+            sudo cp -R "$ASSET_DIR" $GITHUB_WORKSPACE/metal-toolchain-dmg/asset-folder
+            sudo chown -R $(whoami) $GITHUB_WORKSPACE/metal-toolchain-dmg/asset-folder
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MetalToolchain-dmg
+          path: metal-toolchain-dmg/
+          retention-days: 1
